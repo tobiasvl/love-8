@@ -40,11 +40,16 @@ function love.load(arg)
     file:close()
 
     moonshine = require 'moonshine'
-    effect = moonshine(64*8, 32*8, moonshine.effects.scanlines).chain(moonshine.effects.chromasep).chain(moonshine.effects.crt)
-    effect.chromasep.angle = 0.25
-    effect.chromasep.radius = 1
+    effect = moonshine(64*8, 32*8, moonshine.effects.scanlines)
+        .chain(moonshine.effects.glow)
+        .chain(moonshine.effects.chromasep)
+        .chain(moonshine.effects.crt)
+    effect.chromasep.angle = 0.15
+    effect.chromasep.radius = 2
     effect.scanlines.width = 1
-    --effect.scanlines.frequency = 300
+    effect.crt.distortionFactor = {1.02, 1.065}
+    effect.glow.strength = 3
+    effect.glow.min_luma = 0.9
 end
 
 function love.filedropped(file)

@@ -260,7 +260,7 @@ instructions[0xF000] = function(cpu, opcode)
     elseif instruction == 0x55 then
         -- FX55: store V0 through VX to addresses pointed at by I
         for j=0,x do
-            cpu.rom[i+j] = cpu.v[j]
+            cpu.rom[cpu.i+j] = cpu.v[j]
         end
         --i = i + x + 1
     elseif instruction == 0x65 then
