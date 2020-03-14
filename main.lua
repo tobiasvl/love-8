@@ -2,24 +2,50 @@ local CPU = require 'cpu'
 local moonshine = require 'moonshine'
 local imgui = require 'imgui'
 
-local key_mapping = {
-    ["1"] = 0x1,
-    ["2"] = 0x2,
-    ["3"] = 0x3,
-    ["4"] = 0xC,
-    ["q"] = 0x4,
-    ["w"] = 0x5,
-    ["e"] = 0x6,
-    ["r"] = 0xD,
-    ["a"] = 0x7,
-    ["s"] = 0x8,
-    ["d"] = 0x9,
-    ["f"] = 0xE,
-    ["z"] = 0xA,
-    ["x"] = 0x0,
-    ["c"] = 0xB,
-    ["v"] = 0xF
+local keys_cosmac = {
+    0x1,
+    0x2,
+    0x3,
+    0xC,
+    0x4,
+    0x5,
+    0x6,
+    0xD,
+    0x7,
+    0x8,
+    0x9,
+    0xE,
+    0xA,
+    0x0,
+    0xB,
+    0xF
 }
+
+local keys_qwerty = {
+    "1",
+    "2",
+    "3",
+    "4",
+    "q",
+    "w",
+    "e",
+    "r",
+    "a",
+    "s",
+    "d",
+    "f",
+    "z",
+    "x",
+    "c",
+    "v"
+}
+
+local key_mapping = {}
+local button_status = {}
+for k, v in pairs(keys_cosmac) do
+    key_mapping[keys_qwerty[k]] = v
+    button_status[v] = false
+end
 
 local canvases = {}
 local effect
@@ -72,23 +98,34 @@ function love.filedropped(file)
 end
 
 function love.update(dt)
-    imgui.NewFrame()
-
     if CPU.rom_loaded and not pause then
         if CPU.delay > 0 then CPU.delay = CPU.delay - 1 end
         if CPU.sound > 0 then CPU.sound = CPU.sound - 1 end
         --next_time = next_time + min_dt
 
+        local temp_key_status = {}
+        for k, v in pairs(button_status) do
+            temp_key_status[k] = CPU.key_status[k]
+            if v then
+                CPU.key_status[k] = v
+            end
+        end
+
         for i=1,30 do
             local opcode = CPU:cycle()
             CPU:decode(opcode)
+        end
+
+        for k, v in pairs(button_status) do
+            CPU.key_status[k] = temp_key_status[k]
         end
     end
 end
 
 function love.draw()
+    imgui.NewFrame()
     imgui.SetNextWindowPos(0, 20, "ImGuiCond_FirstUseEver")
-    showAnotherWindow = imgui.Begin("Display", true)--, { "ImGuiWindowFlags_AlwaysAutoResize" })
+    showAnotherWindow = imgui.Begin("Display", nil, "NoCollapse")--, { "ImGuiWindowFlags_AlwaysAutoResize" })
     local win_x, win_y = imgui.GetWindowSize()
     if CPU.display then
         if CPU.drawflag then
@@ -139,20 +176,54 @@ function love.draw()
         love.graphics.print(string.format("%03x", CPU.stack[i]), 740, 10 + y)
         y = y + 12
     end
-    local x = 600
-    y = 200
-    local k = 0
-    for y = 200, 238, 12 do
-        for x = 600, 630, 10 do
-            if CPU.key_status[k] then love.graphics.setColor(1, 0, 0) end
-            love.graphics.print(string.format("%x", k), x, y)
-            k = k + 1
-            love.graphics.setColor(1, 1, 1)
-        end
-    end
     love.graphics.setCanvas()
     love.graphics.pop()
     imgui.Image(canvases.instructions, 200, 200)
+    imgui.End()
+
+    imgui.SetNextWindowPos(540, 300, "ImGuiCond_FirstUseEver")
+    showAnotherWindow = imgui.Begin("Keypad", nil, { "NoScrollbar", "MenuBar" })
+    if imgui.BeginMenuBar() then
+        if imgui.BeginMenu("Layout") then
+            imgui.MenuItem("Standard", nil, true, false)
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip("COSMAC VIP, HP48, and most others")
+            end
+            imgui.MenuItem("DREAM 6800", nil, false, false)
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip("DREAM 6800 assembled in Electronics Australia, and 40th anniversary reproduction")
+            end
+            imgui.MenuItem("DREAM 6800 prototype", nil, false, false)
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip("DREAM 6800 prototype and the CHIP-8 Classic Computer")
+            end
+            imgui.MenuItem("ETI-660 Standard", nil, false, false)
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip("Rectangular, ETI-660 assembled in Electronics Today International")
+            end
+            imgui.MenuItem("ETI-660", nil, false, false)
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip("Common square aftermarket keypad for ETI-660")
+            end
+            imgui.EndMenu()
+        end
+        imgui.EndMenuBar()
+    end
+    local win_w, win_h = imgui.GetWindowSize()
+    imgui.PushButtonRepeat(true)
+    for k, v in pairs(keys_cosmac) do
+        if CPU.key_status[v] then
+            imgui.PushStyleColor("ImGuiCol_Button", 117 / 255, 138 / 255, 204 / 255, 1)
+            button_status[v] = imgui.Button(string.format("%X", v), (win_w / 5), (win_h / 5) - 5)
+            imgui.PopStyleColor(1)
+        else
+            button_status[v] = imgui.Button(string.format("%X", v), (win_w / 5), (win_h / 5) - 4)
+        end
+        if k % 4 ~= 0 then
+            imgui.SameLine()
+        end
+    end
+    imgui.PopButtonRepeat()
     imgui.End()
 
     if imgui.BeginMainMenuBar() then
