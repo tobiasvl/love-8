@@ -1,4 +1,6 @@
 local CPU = require 'cpu'
+local moonshine = require 'moonshine'
+local imgui = require 'imgui'
 
 local key_mapping = {
     ["1"] = 0x1,
@@ -19,11 +21,15 @@ local key_mapping = {
     ["v"] = 0xF
 }
 
+local canvases = {}
+local effect
+
 function love.load(arg)
     --min_dt = 1/60--60 --fps
     --next_time = love.timer.getTime()
     --debug.debug()
-    canvas = love.graphics.newCanvas(64*8, 32*8)
+    canvases.display = love.graphics.newCanvas(64*8, 32*8)
+    canvases.instructions = love.graphics.newCanvas(200, 200)
 
     CPU:init()
 
@@ -39,7 +45,6 @@ function love.load(arg)
     end
     file:close()
 
-    moonshine = require 'moonshine'
     effect = moonshine(64*8, 32*8, moonshine.effects.scanlines)
         .chain(moonshine.effects.glow)
         .chain(moonshine.effects.chromasep)
@@ -67,6 +72,8 @@ function love.filedropped(file)
 end
 
 function love.update(dt)
+    imgui.NewFrame()
+
     if CPU.rom_loaded and not pause then
         if CPU.delay > 0 then CPU.delay = CPU.delay - 1 end
         if CPU.sound > 0 then CPU.sound = CPU.sound - 1 end
@@ -80,27 +87,39 @@ function love.update(dt)
 end
 
 function love.draw()
+    imgui.SetNextWindowPos(0, 20, "ImGuiCond_FirstUseEver")
+    showAnotherWindow = imgui.Begin("Display", true)--, { "ImGuiWindowFlags_AlwaysAutoResize" })
+    local win_x, win_y = imgui.GetWindowSize()
     if CPU.display then
         if CPU.drawflag then
-            love.graphics.setCanvas(canvas)
+            love.graphics.setCanvas(canvases.display)
             love.graphics.clear()
-            --love.graphics.setColor(1,1,1)
-            for x=0,63 do
-                for y=0,31 do
-                    if CPU.screen[x][y]==1 then
-                        love.graphics.rectangle("fill", x*8, y*8, 8, 8)
+            effect(function()
+                love.graphics.setColor(1,1,1)
+                for x=0,63 do
+                    for y=0,31 do
+                        if CPU.screen[x][y]==1 then
+                            love.graphics.rectangle("fill", x*8, y*8, 8, 8)
+                        end
                     end
                 end
-            end
+            end)
             love.graphics.setCanvas()
             CPU.drawflag = false
         end
-
-        effect(function() love.graphics.draw(canvas) end)
     end
+    imgui.Image(canvases.display, 64*8 + 8, 32*8)
+    imgui.End()
 
+    imgui.SetNextWindowPos(540, 20, "ImGuiCond_FirstUseEver")
+    showAnotherWindow = imgui.Begin("Instructions", true)
+    love.graphics.push()
+    love.graphics.setCanvas(canvases.instructions)
+    love.graphics.clear()
+    love.graphics.translate(-590, 0)
+    love.graphics.setBlendMode('alpha', 'alphamultiply')
     local y = 0
-    for i= CPU.pc -16, CPU.pc + 16, 2 do
+    for i = CPU.pc - 16, CPU.pc + 16, 2 do
         if i == CPU.pc then
             love.graphics.print(">", 590, y)
         end
@@ -131,36 +150,87 @@ function love.draw()
             love.graphics.setColor(1, 1, 1)
         end
     end
+    love.graphics.setCanvas()
+    love.graphics.pop()
+    imgui.Image(canvases.instructions, 200, 200)
+    imgui.End()
 
-
-    --[[if not pause then
-        local cur_time = love.timer.getTime()
-        if next_time <= cur_time then
-            next_time = cur_time
-            return
+    if imgui.BeginMainMenuBar() then
+        if imgui.BeginMenu("File") then
+            if imgui.MenuItem("Quit") then
+                love.event.quit()
+            end
+            imgui.EndMenu()
         end
-        love.timer.sleep(next_time - cur_time)
-    end]]
+        imgui.EndMainMenuBar()
+    end
+
+    imgui.Render()
+end
+
+function love.quit()
+    imgui.ShutDown()
 end
 
 function love.keypressed(key)
-    -- TODO: VIP used the sound timer for this, so a sound should be emitted while a key is held down
-    if key_mapping[key] then
-        CPU.key_status[key_mapping[key]] = true
-    end
+    imgui.KeyPressed(key)
+    if not imgui.GetWantCaptureKeyboard() then
+        -- TODO: VIP used the sound timer for this, so a sound should be emitted while a key is held down
+        if key_mapping[key] then
+            CPU.key_status[key_mapping[key]] = true
+        end
 
-    if key == "space" then pause = not pause end
-    if pause and key == "right" then
-        if CPU.delay > 0 then CPU.delay = CPU.delay - 1 end
-        if CPU.sound > 0 then CPU.sound = CPU.sound - 1 end
-        --next_time = next_time + min_dt
-        CPU:decode(CPU:cycle())
+        if key == "space" then pause = not pause end
+        if pause and key == "right" then
+            if CPU.delay > 0 then CPU.delay = CPU.delay - 1 end
+            if CPU.sound > 0 then CPU.sound = CPU.sound - 1 end
+            --next_time = next_time + min_dt
+            CPU:decode(CPU:cycle())
+        end
     end
 end
 
 function love.keyreleased(key)
-    -- TODO: VIP used the sound timer for this, so a sound should be emitted while a key is held down
-    if key_mapping[key] then
-        CPU.key_status[key_mapping[key]] = false
+    imgui.KeyReleased(key)
+    if not imgui.GetWantCaptureKeyboard() then
+        -- TODO: VIP used the sound timer for this, so a sound should be emitted while a key is held down
+        if key_mapping[key] then
+            CPU.key_status[key_mapping[key]] = false
+        end
+    end
+end
+
+function love.mousemoved(x, y)
+    imgui.MouseMoved(x, y, true)
+    if not imgui.GetWantCaptureMouse() then
+        -- Pass event to the game
+    end
+end
+
+function love.mousepressed(x, y, button)
+    imgui.MousePressed(button)
+    if not imgui.GetWantCaptureMouse() then
+        -- Pass event to the game
+    end
+end
+
+function love.mousereleased(x, y, button)
+    imgui.MouseReleased(button)
+    if not imgui.GetWantCaptureMouse() then
+        -- Pass event to the game
+    end
+end
+
+function love.wheelmoved(x, y)
+    imgui.WheelMoved(y)
+    if not imgui.GetWantCaptureMouse() then
+        -- Pass event to the game
+    end
+end
+
+function love.textinput(t)
+    imgui.TextInput(t)
+    if not imgui.GetWantCaptureKeyboard() then
+        -- Pass event to the game
     end
 end
