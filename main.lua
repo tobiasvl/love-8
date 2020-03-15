@@ -134,7 +134,16 @@ function love.draw()
     imgui.NewFrame()
     if showDisplayWindow then
         imgui.SetNextWindowPos(0, 20, "ImGuiCond_FirstUseEver")
-        showDisplayWindow = imgui.Begin("Display", nil, "NoCollapse")--, { "ImGuiWindowFlags_AlwaysAutoResize" })
+        showDisplayWindow = imgui.Begin("Display", nil, { "NoCollapse", "MenuBar" })--, { "ImGuiWindowFlags_AlwaysAutoResize" })
+        if imgui.BeginMenuBar() then
+            if imgui.BeginMenu("Tools") then
+                if imgui.MenuItem("Save screenshot", nil, false, true) then
+                    canvases.display:newImageData():encode('png', romfile .. "-" .. os.time() .. ".png")
+                end
+                imgui.EndMenu()
+            end
+            imgui.EndMenuBar()
+        end
         local win_x, win_y = imgui.GetWindowSize()
         if CPU.display then
             if CPU.drawflag then
