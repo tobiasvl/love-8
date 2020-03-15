@@ -47,7 +47,15 @@ for k, v in pairs(keys_cosmac) do
     button_status[v] = false
 end
 
+local shaders = {}
+
 local canvases = {}
+local shaders = {
+    scanlines = true,
+    glow = true,
+    chromasep = true,
+    crt = true
+}
 local effect
 local romfile
 
@@ -136,6 +144,22 @@ function love.draw()
         imgui.SetNextWindowPos(0, 20, "ImGuiCond_FirstUseEver")
         showDisplayWindow = imgui.Begin("Display", nil, { "NoCollapse", "MenuBar" })--, { "ImGuiWindowFlags_AlwaysAutoResize" })
         if imgui.BeginMenuBar() then
+            if imgui.BeginMenu("Effects") then
+                for k, v in pairs(shaders) do
+                    if imgui.MenuItem(k, nil, shaders[k], true) then
+                        shaders[k] = not shaders[k]
+                        -- TODO improve this?
+                        for k, v in pairs(shaders) do
+                            if shaders[k] then
+                                effect.enable(k)
+                            else
+                                effect.disable(k)
+                            end
+                        end
+                    end
+                end
+                imgui.EndMenu()
+            end
             if imgui.BeginMenu("Tools") then
                 if imgui.MenuItem("Save screenshot", nil, false, true) then
                     canvases.display:newImageData():encode('png', romfile .. "-" .. os.time() .. ".png")
