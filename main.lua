@@ -49,6 +49,7 @@ end
 
 local canvases = {}
 local effect
+local romfile
 
 function love.load(arg)
     --min_dt = 1/60--60 --fps
@@ -59,15 +60,17 @@ function love.load(arg)
 
     CPU:init()
 
-    local romfile = arg[1] or "mini-lights-out.ch8"
+    romfile = arg[1] or "mini-lights-out.ch8"
     local file = love.filesystem.newFile("ROM/" .. romfile)
     local ok, err = file:open("r")
     if ok then
         CPU.rom_loaded = true
         CPU:read_rom(file)
+        love.window.setTitle("LOVE-8 - " .. romfile)
     else
         print(err)
         CPU.rom_loaded = false
+        love.window.setTitle("LOVE-8")
     end
     file:close()
 
@@ -89,6 +92,7 @@ end
 
 function love.filedropped(file)
     CPU:init()
+    love.window.setTitle("LOVE-8")
 
     local ok, err = file:open("r")
     if ok then
