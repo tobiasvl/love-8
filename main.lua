@@ -228,6 +228,9 @@ function love.draw()
             else
                 button_status[v] = imgui.Button(string.format("%X", v), (win_w / 5), (win_h / 5) - 4)
             end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(keys_qwerty[k])
+            end
             if k % 4 ~= 0 then
                 imgui.SameLine()
             end
