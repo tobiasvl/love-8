@@ -8,4 +8,5 @@ function love.conf(t)
 
     t.console = true
     t.window.title = "LOVE-8"
+    t.window.resizable = true
 end

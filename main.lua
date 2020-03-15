@@ -81,6 +81,10 @@ function love.load(arg)
     effect.crt.distortionFactor = {1.02, 1.065}
     effect.glow.strength = 3
     effect.glow.min_luma = 0.9
+
+    showDisplayWindow = true
+    showKeypadWindow = true
+    showInstructionsWindow = true
 end
 
 function love.filedropped(file)
@@ -124,112 +128,130 @@ end
 
 function love.draw()
     imgui.NewFrame()
-    imgui.SetNextWindowPos(0, 20, "ImGuiCond_FirstUseEver")
-    showAnotherWindow = imgui.Begin("Display", nil, "NoCollapse")--, { "ImGuiWindowFlags_AlwaysAutoResize" })
-    local win_x, win_y = imgui.GetWindowSize()
-    if CPU.display then
-        if CPU.drawflag then
-            love.graphics.setCanvas(canvases.display)
-            love.graphics.clear()
-            effect(function()
-                love.graphics.setColor(1,1,1)
-                for x=0,63 do
-                    for y=0,31 do
-                        if CPU.screen[x][y]==1 then
-                            love.graphics.rectangle("fill", x*8, y*8, 8, 8)
+    if showDisplayWindow then
+        imgui.SetNextWindowPos(0, 20, "ImGuiCond_FirstUseEver")
+        showDisplayWindow = imgui.Begin("Display", nil, "NoCollapse")--, { "ImGuiWindowFlags_AlwaysAutoResize" })
+        local win_x, win_y = imgui.GetWindowSize()
+        if CPU.display then
+            if CPU.drawflag then
+                love.graphics.setCanvas(canvases.display)
+                love.graphics.clear()
+                effect(function()
+                    love.graphics.setColor(1,1,1)
+                    for x=0,63 do
+                        for y=0,31 do
+                            if CPU.screen[x][y]==1 then
+                                love.graphics.rectangle("fill", x*8, y*8, 8, 8)
+                            end
                         end
                     end
+                end)
+                love.graphics.setCanvas()
+                CPU.drawflag = false
+            end
+        end
+        imgui.Image(canvases.display, 64*8 + 8, 32*8)
+        imgui.End()
+    end
+
+    if showInstructionsWindow then
+        imgui.SetNextWindowPos(540, 20, "ImGuiCond_FirstUseEver")
+        showInstructionsWindow = imgui.Begin("Instructions", true)
+        love.graphics.push()
+        love.graphics.setCanvas(canvases.instructions)
+        love.graphics.clear()
+        love.graphics.translate(-590, 0)
+        love.graphics.setBlendMode('alpha', 'alphamultiply')
+        local y = 0
+        for i = CPU.pc - 16, CPU.pc + 16, 2 do
+            if i == CPU.pc then
+                love.graphics.print(">", 590, y)
+            end
+            love.graphics.print(string.format("%03x", i) .. ": " .. string.format("%02x%02x", CPU.rom[i], CPU.rom[i+1]), 600, y)
+            y = y + 12
+        end
+        y = 0
+        for i = 0, #CPU.v do
+            love.graphics.print("V" .. string.format("%x", i) .. ": " .. CPU.v[i], 670, y)
+            y = y + 12
+        end
+        love.graphics.print("I: " .. string.format("%03x", CPU.i), 740, 0)
+        love.graphics.print("D: " .. CPU.delay, 740, 10)
+        love.graphics.print("T: " .. CPU.sound, 740, 20)
+        y = 25
+        for i = #CPU.stack, 1, -1 do
+            love.graphics.print(string.format("%03x", CPU.stack[i]), 740, 10 + y)
+            y = y + 12
+        end
+        love.graphics.setCanvas()
+        love.graphics.pop()
+        imgui.Image(canvases.instructions, 200, 200)
+        imgui.End()
+    end
+
+    if showKeypadWindow then
+        imgui.SetNextWindowPos(540, 300, "ImGuiCond_FirstUseEver")
+        showKeypadWindow = imgui.Begin("Keypad", true, { "NoScrollbar", "MenuBar" })
+        if imgui.BeginMenuBar() then
+            if imgui.BeginMenu("Layout") then
+                imgui.MenuItem("Standard", nil, true, false)
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip("COSMAC VIP, HP48, and most others")
                 end
-            end)
-            love.graphics.setCanvas()
-            CPU.drawflag = false
-        end
-    end
-    imgui.Image(canvases.display, 64*8 + 8, 32*8)
-    imgui.End()
-
-    imgui.SetNextWindowPos(540, 20, "ImGuiCond_FirstUseEver")
-    showAnotherWindow = imgui.Begin("Instructions", true)
-    love.graphics.push()
-    love.graphics.setCanvas(canvases.instructions)
-    love.graphics.clear()
-    love.graphics.translate(-590, 0)
-    love.graphics.setBlendMode('alpha', 'alphamultiply')
-    local y = 0
-    for i = CPU.pc - 16, CPU.pc + 16, 2 do
-        if i == CPU.pc then
-            love.graphics.print(">", 590, y)
-        end
-        love.graphics.print(string.format("%03x", i) .. ": " .. string.format("%02x%02x", CPU.rom[i], CPU.rom[i+1]), 600, y)
-        y = y + 12
-    end
-    y = 0
-    for i = 0, #CPU.v do
-        love.graphics.print("V" .. string.format("%x", i) .. ": " .. CPU.v[i], 670, y)
-        y = y + 12
-    end
-    love.graphics.print("I: " .. string.format("%03x", CPU.i), 740, 0)
-    love.graphics.print("D: " .. CPU.delay, 740, 10)
-    love.graphics.print("T: " .. CPU.sound, 740, 20)
-    y = 25
-    for i = #CPU.stack, 1, -1 do
-        love.graphics.print(string.format("%03x", CPU.stack[i]), 740, 10 + y)
-        y = y + 12
-    end
-    love.graphics.setCanvas()
-    love.graphics.pop()
-    imgui.Image(canvases.instructions, 200, 200)
-    imgui.End()
-
-    imgui.SetNextWindowPos(540, 300, "ImGuiCond_FirstUseEver")
-    showAnotherWindow = imgui.Begin("Keypad", nil, { "NoScrollbar", "MenuBar" })
-    if imgui.BeginMenuBar() then
-        if imgui.BeginMenu("Layout") then
-            imgui.MenuItem("Standard", nil, true, false)
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip("COSMAC VIP, HP48, and most others")
+                imgui.MenuItem("DREAM 6800", nil, false, false)
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip("DREAM 6800 assembled in Electronics Australia, and 40th anniversary reproduction")
+                end
+                imgui.MenuItem("DREAM 6800 prototype", nil, false, false)
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip("DREAM 6800 prototype and the CHIP-8 Classic Computer")
+                end
+                imgui.MenuItem("ETI-660 Standard", nil, false, false)
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip("Rectangular, ETI-660 assembled in Electronics Today International")
+                end
+                imgui.MenuItem("ETI-660", nil, false, false)
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip("Common square aftermarket keypad for ETI-660")
+                end
+                imgui.EndMenu()
             end
-            imgui.MenuItem("DREAM 6800", nil, false, false)
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip("DREAM 6800 assembled in Electronics Australia, and 40th anniversary reproduction")
-            end
-            imgui.MenuItem("DREAM 6800 prototype", nil, false, false)
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip("DREAM 6800 prototype and the CHIP-8 Classic Computer")
-            end
-            imgui.MenuItem("ETI-660 Standard", nil, false, false)
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip("Rectangular, ETI-660 assembled in Electronics Today International")
-            end
-            imgui.MenuItem("ETI-660", nil, false, false)
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip("Common square aftermarket keypad for ETI-660")
-            end
-            imgui.EndMenu()
+            imgui.EndMenuBar()
         end
-        imgui.EndMenuBar()
+        local win_w, win_h = imgui.GetWindowSize()
+        imgui.PushButtonRepeat(true)
+        for k, v in pairs(keys_cosmac) do
+            if CPU.key_status[v] then
+                imgui.PushStyleColor("ImGuiCol_Button", 117 / 255, 138 / 255, 204 / 255, 1)
+                button_status[v] = imgui.Button(string.format("%X", v), (win_w / 5), (win_h / 5) - 5)
+                imgui.PopStyleColor(1)
+            else
+                button_status[v] = imgui.Button(string.format("%X", v), (win_w / 5), (win_h / 5) - 4)
+            end
+            if k % 4 ~= 0 then
+                imgui.SameLine()
+            end
+        end
+        imgui.PopButtonRepeat()
+        imgui.End()
     end
-    local win_w, win_h = imgui.GetWindowSize()
-    imgui.PushButtonRepeat(true)
-    for k, v in pairs(keys_cosmac) do
-        if CPU.key_status[v] then
-            imgui.PushStyleColor("ImGuiCol_Button", 117 / 255, 138 / 255, 204 / 255, 1)
-            button_status[v] = imgui.Button(string.format("%X", v), (win_w / 5), (win_h / 5) - 5)
-            imgui.PopStyleColor(1)
-        else
-            button_status[v] = imgui.Button(string.format("%X", v), (win_w / 5), (win_h / 5) - 4)
-        end
-        if k % 4 ~= 0 then
-            imgui.SameLine()
-        end
-    end
-    imgui.PopButtonRepeat()
-    imgui.End()
 
     if imgui.BeginMainMenuBar() then
         if imgui.BeginMenu("File") then
             if imgui.MenuItem("Quit") then
                 love.event.quit()
+            end
+            imgui.EndMenu()
+        end
+        if imgui.BeginMenu("Windows") then
+            if imgui.MenuItem("Display", nil, showDisplayWindow, false) then
+                showDisplayWindow = not showDisplayWindow
+            end
+            if imgui.MenuItem("Keypad", nil, showKeypadWindow, true) then
+                showKeypadWindow = not showKeypadWindow
+            end
+            if imgui.MenuItem("Instructions", nil, showInstructionsWindow, true) then
+                showInstructionsWindow = not showInstructionsWindow
             end
             imgui.EndMenu()
         end
