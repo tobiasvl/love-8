@@ -100,15 +100,16 @@ end
 
 function love.filedropped(file)
     CPU:init()
-    love.window.setTitle("LOVE-8")
 
     local ok, err = file:open("r")
     if ok then
         CPU:read_rom(file)
         CPU.rom_loaded = true
+        love.window.setTitle("LOVE-8 - " .. file:getFilename():match("[^/\\]+$"))
     else
         print(err)
         CPU.rom_loaded = false
+        love.window.setTitle("LOVE-8")
     end
     file:close()
 end
