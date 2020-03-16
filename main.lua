@@ -58,6 +58,7 @@ local shaders = {
 }
 local effect
 local romfile
+local followPC = true
 
 function love.load(arg)
     --min_dt = 1/60--60 --fps
@@ -141,6 +142,7 @@ end
 
 function love.draw()
     imgui.NewFrame()
+
     if showDisplayWindow then
         imgui.SetNextWindowPos(0, 20, "ImGuiCond_FirstUseEver")
         showDisplayWindow = imgui.Begin("Display", nil, { "NoCollapse", "MenuBar" })--, { "ImGuiWindowFlags_AlwaysAutoResize" })
@@ -193,37 +195,43 @@ function love.draw()
     end
 
     if showInstructionsWindow then
-        imgui.SetNextWindowPos(540, 20, "ImGuiCond_FirstUseEver")
-        showInstructionsWindow = imgui.Begin("Instructions", true)
-        love.graphics.push()
-        love.graphics.setCanvas(canvases.instructions)
-        love.graphics.clear()
-        love.graphics.translate(-590, 0)
-        love.graphics.setBlendMode('alpha', 'alphamultiply')
-        local y = 0
-        for i = CPU.pc - 16, CPU.pc + 16, 2 do
-            if i == CPU.pc then
-                love.graphics.print(">", 590, y)
+        imgui.SetNextWindowSize(200, 200)
+        showInstructionsWindow = imgui.Begin("Instructions", nil, "MenuBar")
+        if imgui.BeginMenuBar() then
+            if imgui.BeginMenu("Settings") then
+                if imgui.MenuItem("Follow PC", nil, followPC, true) then
+                    followPC = not followPC
+                end
+                imgui.EndMenu()
             end
-            love.graphics.print(string.format("%03x", i) .. ": " .. string.format("%02x%02x", CPU.rom[i], CPU.rom[i+1]), 600, y)
-            y = y + 12
+            imgui.EndMenuBar()
         end
-        y = 0
-        for i = 0, #CPU.v do
-            love.graphics.print("V" .. string.format("%x", i) .. ": " .. CPU.v[i], 670, y)
-            y = y + 12
+        for i = 0x200, #CPU.rom, 2 do
+            -- TODO handle odd byte boundaries
+            if i == CPU.pc or i + 1 == CPU.pc then
+                if followPC and not pause then
+                    imgui.SetScrollHere()
+                end
+                imgui.Text("PC ")
+            elseif i == CPU.i or i + 1 == CPU.i then
+                imgui.Text(" I ")
+            else
+                local found = false
+                for j, s in ipairs(CPU.stack) do
+                    if i == s or i + 1 == s then
+                        imgui.Text("S" .. (j - 1) .. " ")
+                        found = true
+                    end
+                end
+                if not found then
+                    imgui.Text("   ")
+                end
+            end
+            imgui.SameLine()
+            imgui.Text(string.format("%04X", i) .. ": ")
+            imgui.SameLine()
+            imgui.Text(string.format("%02X", CPU.rom[i]) .. string.format("%02X", CPU.rom[i + 1] or 0))
         end
-        love.graphics.print("I: " .. string.format("%03x", CPU.i), 740, 0)
-        love.graphics.print("D: " .. CPU.delay, 740, 10)
-        love.graphics.print("T: " .. CPU.sound, 740, 20)
-        y = 25
-        for i = #CPU.stack, 1, -1 do
-            love.graphics.print(string.format("%03x", CPU.stack[i]), 740, 10 + y)
-            y = y + 12
-        end
-        love.graphics.setCanvas()
-        love.graphics.pop()
-        imgui.Image(canvases.instructions, 200, 200)
         imgui.End()
     end
 
