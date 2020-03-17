@@ -59,6 +59,11 @@ local shaders = {
 local effect
 local romfile
 local followPC = true
+local followI = true
+local showDisplayWindow = true
+local showKeypadWindow = true
+local showInstructionsWindow = true
+local showMemoryWindow = true
 
 function love.load(arg)
     --min_dt = 1/60--60 --fps
@@ -93,10 +98,6 @@ function love.load(arg)
     effect.crt.distortionFactor = {1.02, 1.065}
     effect.glow.strength = 3
     effect.glow.min_luma = 0.9
-
-    showDisplayWindow = true
-    showKeypadWindow = true
-    showInstructionsWindow = true
 end
 
 function love.filedropped(file)
@@ -195,7 +196,7 @@ function love.draw()
     end
 
     if showInstructionsWindow then
-        imgui.SetNextWindowSize(200, 200)
+        imgui.SetNextWindowSize(200, 200, "ImGuiCond_FirstUseEver")
         showInstructionsWindow = imgui.Begin("Instructions", nil, "MenuBar")
         if imgui.BeginMenuBar() then
             if imgui.BeginMenu("Settings") then
@@ -231,6 +232,47 @@ function love.draw()
             imgui.Text(string.format("%04X", i) .. ": ")
             imgui.SameLine()
             imgui.Text(string.format("%02X", CPU.rom[i]) .. string.format("%02X", CPU.rom[i + 1] or 0))
+        end
+        imgui.End()
+    end
+
+    if showMemoryWindow then
+        imgui.SetNextWindowSize(200, 200, "ImGuiCond_FirstUseEver")
+        showMemoryWindow = imgui.Begin("Memory", true, "MenuBar")
+        if imgui.BeginMenuBar() then
+            if imgui.BeginMenu("Settings") then
+                if imgui.MenuItem("Follow I", nil, followI, true) then
+                    followI = not followI
+                end
+                imgui.EndMenu()
+            end
+            imgui.EndMenuBar()
+        end
+        for i = 0x200, #CPU.rom do
+            if CPU.i == i then
+                imgui.Text(" I ")
+                if followI and not pause then
+                    imgui.SetScrollHere()
+                end
+            else
+                imgui.Text("   ")
+            end
+            imgui.SameLine()
+            imgui.Text(string.format("%04X", i) .. ": ")
+            imgui.SameLine()
+            imgui.Text(string.format("%02X", CPU.rom[i]) .. " ")
+            imgui.SameLine()
+            imgui.Text(string.format("%03d", CPU.rom[i]) .. " ")
+            imgui.SameLine()
+            local c = CPU.rom[i]
+            if c > 31 and c < 127 then imgui.Text(string.char(CPU.rom[i]) .. " ") else imgui.Text("  ") end
+            imgui.SameLine()
+            local n = CPU.rom[i]
+            local s = ""
+            for j = 0, 7 do
+                s = s .. (bit.band(bit.rshift(n, 7 - j), 1) == 1 and "1" or "0")
+            end
+            imgui.Text(s)
         end
         imgui.End()
     end
